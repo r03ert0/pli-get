@@ -5,24 +5,24 @@ With a spli6 PLI machine, a Basler camera and an XY stage.
 ## Usage
 
 ### Calibrate
-`python pli-get.py --calibrate`
+`python pli_get.py --calibrate`
 
 ### Unload a sample using the XY stage
-`python pli-get.py --xy_commands "G21G91G1X120F2000"`
+`python pli_get.py --xy_commands "G21G91G1X120F2000"`
 
 ### Load a sample using the XY stage
-`python pli-get.py --xy_commands "G21G91G1X-120F2000"`
+`python pli_get.py --xy_commands "G21G91G1X-120F2000"`
 
 ## Acquire one set of images with 1 rotating polariser configuration in a small PLI machine (67 mm polarisers)
-`python pli-get.py --acquire --base_path path/to/data --n_angles 36 --n_polarisers 1 --n_stepper_steps 800 --n_large_gear_teeth 96 --n_small_gear_teeth 42 --color_mode Mono8 --gain 9.555 --exposure 11000 --gamma 3.999`
+`python pli_get.py --acquire --base_path path/to/data --n_angles 36 --n_polarisers 1 --n_stepper_steps 800 --n_large_gear_teeth 96 --n_small_gear_teeth 42 --color_mode Mono8 --gain 9.555 --exposure 11000 --gamma 3.999`
 
 ## Acquire the same set of images with a 2 rotating polarisers configuration in a large PLI machine (95 mm polarisers)
-`python pli-get.py --acquire --base_path path/to/data --n_angles 36 --n_polarisers 2 --n_stepper_steps 800 --n_large_gear_teeth 112 --n_small_gear_teeth 42 --color_mode Mono8 --gain 9.555 --exposure 11000 --gamma 3.999`
+`python pli_get.py --acquire --base_path path/to/data --n_angles 36 --n_polarisers 2 --n_stepper_steps 800 --n_large_gear_teeth 112 --n_small_gear_teeth 42 --color_mode Mono8 --gain 9.555 --exposure 11000 --gamma 3.999`
 
 ## Send raw commands to the PLI machine
-`python pli-get.py --command "1+200;wait 1;1-200"`: Make motor 1 move 200 steps clockwise, wait 1 second, move it 200 steps counter clockwise.
+`python pli_get.py --command "1+200;wait 1;1-200"`: Make motor 1 move 200 steps clockwise, wait 1 second, move it 200 steps counter clockwise.
 
-`python pli-get.py --command "delay 5"`: Set the delay between steps to 5 ms.
+`python pli_get.py --command "delay 5"`: Set the delay between steps to 5 ms.
 
 ## Notes
 
