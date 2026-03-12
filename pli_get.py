@@ -25,8 +25,7 @@ from matplotlib.widgets import TextBox
 from datetime import datetime as dt
 import code
 
-from camera_basler import Camera
-# from camera_allied_vision import Camera
+from camera_interface import get_camera
 
 
 ## PLI machine
@@ -75,6 +74,10 @@ class DummySerial:
         elif self.message == "ready":
             self.in_waiting = False
             self.message = ""
+        else:
+            # After "done: N" messages, follow up with "ready"
+            self.message = "ready"
+            self.in_waiting = True
         return tmp.encode(encoding='utf-8')
 
 class PLI:
@@ -111,7 +114,7 @@ class PLI:
     #----------------------------
 
     motor_busy = [False, False, False, False, False]
-    debug = False
+    debug = 1
 
     n_polarisers = None
     n_stepper_steps = None
@@ -131,7 +134,7 @@ class PLI:
 
     def process_pli_machine_message(self, message):
         '''Process a message received from the PLI machine.'''
-        if self.debug: print("PLI >", message)
+        if self.debug: print("PLI>", message)
         if message == "ready":
             self.status = "ready"
             return
@@ -151,7 +154,7 @@ class PLI:
         while self.status != "done":
             if ser.in_waiting:
                 message = ser.readline().decode().strip()
-                if self.debug:
+                if self.debug > 1:
                     print("MSG:", message)
                 self.process_pli_machine_message(message)
             await asyncio.sleep(0.1)
@@ -161,7 +164,7 @@ class PLI:
         while self.status != "done":
             if ser.in_waiting:
                 message = ser.readline().decode().strip()
-                print(f"PLI > {message}")
+                print(f"PLI> {message}")
             await asyncio.sleep(0.1)
 
     async def wait_for_ready(self):
@@ -283,13 +286,13 @@ class PLI:
 
     #     self.x_steps += dx
     #     sign = "+" if dx >= 0 else ""
-    #     string = f"""1{sign}{dx}\n2{sign}{dx}"""
+    #     string = f"""1{sign}{dx}ƒimsave\n2{sign}{dx}"""
     #     self.write(string)
     #     self.status = "moving"
     #     self.motor_busy[self.motor_x] = True
     #     self.motor_busy[self.motor_y] = True
 
-    def move_to_x(self, x):
+    def move_to_x(self, x) -> None:
         '''Move the XY stage to a given x position.'''
         # dx = x - self.x_steps
         # if dx == 0:
@@ -342,6 +345,7 @@ class PLI:
         self.status = "moving"
         self.motor_busy[self.motor_x] = True
         self.motor_busy[self.motor_y] = True
+
 
     def move_to_home(self):
         '''Move the XY stage to the home position.'''
@@ -623,7 +627,7 @@ class PLI:
 
     def __init__(self, no_camera=False):
         if no_camera is False:
-            self.camera = Camera()
+            self.camera = get_camera()
         self.pli_serial = self.new()
         print("")
 
@@ -703,13 +707,15 @@ async def acquire_task(pli, base_path):
     pli.write("status")
     while pli.pli_serial.in_waiting:
         message = pli.pli_serial.readline().decode().strip()
-        print(f"PLI > {message}")
+        print(f"PLI> {message}")
         await asyncio.sleep(0.1)
 
     await pli.wait_for_ready()
 
     pli.move_to_home()
     await pli.wait_for_ready()
+
+    await asyncio.sleep(5)
 
     xy_steps = pli.xy_steps
 
@@ -727,7 +733,7 @@ async def acquire_task(pli, base_path):
         pli.write("status")
         while pli.pli_serial.in_waiting:
             message = pli.pli_serial.readline().decode().strip()
-            print(f"PLI > {message}")
+            print(f"PLI> {message}")
             await asyncio.sleep(0.1)
 
         await pli.wait_for_ready()
@@ -739,12 +745,18 @@ async def acquire_task(pli, base_path):
                 pli.write("status")
                 while pli.pli_serial.in_waiting:
                     message = pli.pli_serial.readline().decode().strip()
-                    if "xy:" in message: print(f"PLI> {message}")
+                    #if "xy:" in message: print(f"PLI> {message}")
+                    if pli.debug > 1: print(f"PLI> {message}")
                     await asyncio.sleep(0.1)
 
                 pli.write("delay 500", sleep=0)
-                pli.move_to_xy(x + dx * i * pli.xy_steps[0], y + dy * j * pli.xy_steps[1])
+                x_target = x + dx * i * pli.xy_steps[0]
+                y_target = y + dy * j * pli.xy_steps[1]
+
+                pli.move_to_xy(x_target, y_target)
                 await pli.wait_for_ready()
+                pli.x_steps = x_target
+                pli.y_steps = y_target
 
                 pli.write("delay 5", sleep=0)
                 if label:
@@ -754,7 +766,7 @@ async def acquire_task(pli, base_path):
 
     # move home
     pli.write("delay 500", sleep=0)
-    pli.move_to_home()
+    # pli.move_to_home()
     await pli.wait_for_ready()
 
     print("disable the motors")
@@ -838,11 +850,11 @@ def main(args):
         gamma = args.gamma
 
         # optional arguments
-        xy_roi_rect = [(0, 0, 1, 1)]
+        xy_roi_rect = [(None, (0, 0, 1, 1))]
         xy_steps = (1, 1)
-        if "xy_roi_rect" in vars(args):
+        if args.xy_roi_rect is not None:
             xy_roi_rect = args.xy_roi_rect
-        if "xy_steps" in vars(args):
+        if args.xy_steps is not None:
             xy_steps = args.xy_steps
 
         # apply the settings
@@ -905,12 +917,12 @@ if __name__ == "__main__":
 
     # acquire images
     parser.add_argument('--acquire', action='store_true', help='acquire an image')
-    parser.add_argument('--base_path', type=str, help='base path for the images')
-    parser.add_argument('--n_angles', type=int, help='number of angles')
-    parser.add_argument('--n_polarisers', type=int, help='machine number of polarisers')
+    parser.add_argument('--base_path', type=str, help='base path for saving the images')
+    parser.add_argument('--n_angles', type=int, help='number of angles to acquire')
+    parser.add_argument('--n_polarisers', type=int, help='number of polarisers in the machine (1 or 2)')
     parser.add_argument('--n_stepper_steps', type=int, help='number of steps in a whole turn of the stepper motors')
-    parser.add_argument('--n_large_gear_teeth', type=int, help='machine number of teeth in the large gear')
-    parser.add_argument('--n_small_gear_teeth', type=int, help='machine number of teeth in the small gear')
+    parser.add_argument('--n_large_gear_teeth', type=int, help='number of teeth in the large gear of the machine')
+    parser.add_argument('--n_small_gear_teeth', type=int, help='number of teeth in the small stepper gear')
     parser.add_argument('--color_mode', type=str, help='camera color mode')
     parser.add_argument('--gain', type=float, help='camera gain')
     parser.add_argument('--exposure', type=float, help='camera exposure time')
@@ -941,8 +953,8 @@ if __name__ == "__main__":
 #     "gain": 10, # 0,
 #     "exposure": 11000, # 11000,
 #     "gamma": 1,
-#     "xy_roi_rect": (7327,8840,-3901,-5202),
-#     "xy_steps": (1300, 1300)
+#     "xy_roi_rect": [rect_string("1:6262,10623,-1626,-1626")],
+#     "xy_steps": (1626, 1626)
 # }
 # args = argparse.Namespace(**my_dict)
 # main(args)
