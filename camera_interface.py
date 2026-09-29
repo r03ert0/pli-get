@@ -93,9 +93,14 @@ class CameraInterface(ABC):
         '''Return the maximum pixel value for the current pixel format.'''
 
 
-def get_camera():
+def get_camera(camera_server_url=None):
     """Auto-detect and return an available camera.
-    Tries Basler, then Allied Vision, then falls back to DummyCamera."""
+
+    Tries Basler, then Allied Vision, then falls back to DummyCamera.
+    If *camera_server_url* is provided (e.g. "https://192.168.1.42:5000"),
+    a remote camera server (e.g. Samsung S21 phone) is tried before the
+    dummy fallback.
+    """
 
     # Try Basler
     try:
@@ -113,7 +118,41 @@ def get_camera():
     except Exception:
         pass
 
+    # Try remote camera server (only when a server URL is given)
+    if camera_server_url is not None:
+        try:
+            from camera_server import Camera as ServerCamera
+            cam = ServerCamera(server_url=camera_server_url)
+            return cam
+        except Exception:
+            pass
+
     # Fallback to dummy
     from camera_dummy import DummyCamera
     print("No camera found: using dummy camera.")
     return DummyCamera()
+
+
+def get_cameras(camera_server_url=None, camera_ids=None):
+    """Return a list of available cameras.
+
+    If camera_ids is provided (list of camera ID strings), return one
+    CameraInterface per ID (currently only Allied Vision supports this).
+
+    Otherwise, return a single-element list from get_camera().
+    """
+    if camera_ids:
+        cameras = []
+        for cam_id in camera_ids:
+            try:
+                from camera_allied_vision import Camera as AlliedVisionCamera
+                cam = AlliedVisionCamera(camera_id=cam_id)
+                cameras.append(cam)
+            except Exception as e:
+                print(f"Warning: could not open camera {cam_id}: {e}")
+        if cameras:
+            return cameras
+        # fallback
+        print("No cameras matched IDs, falling back to auto-detect.")
+
+    return [get_camera(camera_server_url=camera_server_url)]
