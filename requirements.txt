@@ -1,0 +1,9 @@
+numpy
+scikit-image
+pyserial
+matplotlib
+Pillow
+
+# Camera backends (install as needed):
+# pypylon        # Basler cameras
+# vmbpy          # Allied Vision cameras
