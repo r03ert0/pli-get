@@ -16,8 +16,11 @@ With a spli6 PLI machine, a Basler camera and an XY stage.
 ## Acquire one set of images with 1 rotating polariser configuration in a small PLI machine (67 mm polarisers)
 `python pli_get.py --acquire --base_path path/to/data --n_angles 36 --n_polarisers 1 --n_stepper_steps 800 --n_large_gear_teeth 96 --n_small_gear_teeth 42 --color_mode Mono8 --gain 9.555 --exposure 11000 --gamma 3.999`
 
-## Acquire the same set of images with a 2 rotating polarisers configuration in a large PLI machine (95 mm polarisers)
+## Acquire the same set of images with a 2 rotating polarisers configuration in a large PLI machine (95 mm polarisers) with the A4988 stepper driver
 `python pli_get.py --acquire --base_path path/to/data --n_angles 36 --n_polarisers 2 --n_stepper_steps 800 --n_large_gear_teeth 112 --n_small_gear_teeth 42 --color_mode Mono8 --gain 9.555 --exposure 11000 --gamma 3.999`
+
+## Acquire the same set of images with a 1 rotating polarisers configuration in a large PLI machine (50mm rotating polariser and 95 mm fixed polariser) with the TMC 2209 stepper driver
+`python pli_get.py --acquire --base_path path/to/data --n_angles 36 --n_polarisers 2 --n_stepper_steps 6400 --n_large_gear_teeth 170 --n_small_gear_teeth 20 --color_mode Mono8 --gain 9.555 --exposure 11000 --gamma 1.0`
 
 ## Send raw commands to the PLI machine
 `python pli_get.py --command "1+200;wait 1;1-200"`: Make motor 1 move 200 steps clockwise, wait 1 second, move it 200 steps counter clockwise.
